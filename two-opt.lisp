@@ -136,21 +136,21 @@ the function will go back 1 step.
 
 the function will continuously scan the tour until no further improvements
 can be made, in which case the tour is said to be '2 optimal'."
-  (let ((best (tour-distance tour))
+  (do* ((best (tour-distance tour))
 	(num-cities (length tour))
-	(visited 0)
-	(current 0))
-    (do ()
-	((= visited num-cities) best)
-      (let ((modified (find-move current tour num-cities)))
-	(if (< modified 0.0d0)
-	    (progn 
-	      (setf current (wrap (1- current) num-cities))
-	      (setf visited 0)
-	      (incf best modified))
-	    (progn
-	      (setf current (wrap (1+ current) num-cities))
-	      (incf visited)))))))
+	(visited 0) 
+	(current 0)
+	(modified (find-move current tour num-cities)
+		  (find-move current tour num-cities)))
+       ((= visited num-cities) best)
+    (if (< modified 0.0d0)
+	(progn 
+	  (setf current (wrap (1- current) num-cities))
+	  (setf visited 0)
+	  (incf best modified))
+	(progn
+	  (setf current (wrap (1+ current) num-cities))
+	  (incf visited)))))
 
 ;; (sb-sprof:with-profiling (:max-samples 1 :report :flat :loop nil) 
 ;;   (test-optimise))
