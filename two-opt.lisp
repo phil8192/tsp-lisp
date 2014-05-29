@@ -20,6 +20,12 @@
 (defmacro point-active (point)
   `(aref ,point 2))
 
+(defmacro active (point)
+  `(= (aref ,point 2) 1.0d0))
+
+(defmacro disable (point)
+  `(setf (aref ,point 2) 0.0d0))
+
 (defun distance-squared (p1 p2)
   "for comparing 2 edges."
   (let ((dx (- (point-x p1) (point-x p2)))
@@ -95,48 +101,59 @@ iterated in order, represents a tour."
 	  delta)
 	nil)))
 
-(defun find-move (current-idx current-point
-		  points num-cities)
-  (let* ((prev (wrap (1- current-idx) num-cities))
-	 (next (wrap (1+ current-idx) num-cities))
-	 (prev-point (svref points prev))
-	 (next-point (svref points next)))
-    (do ((i (wrap (+ current-idx 2) num-cities) j)
-	 (j (wrap (+ current-idx 3) num-cities) (wrap (1+ j) num-cities)))
-	((= j current-idx) 0)
-      (let* ((c (svref points i))
-	     (d (svref points j))
-	     (delta (or 
-		     (try-move points prev i prev-point current-point c d)
-		     (try-move points current-idx i current-point next-point c d))))
-	(if delta
-	    (return-from find-move delta))))))
+(defun find-move (current points num-cities)
+  (let ((current-point (svref points current)))
+    (if (not (active current-point))
+	0.0d0
+	(let* ((prev (wrap (1- current) num-cities))
+	       (next (wrap (1+ current) num-cities))
+	       (prev-point (svref points prev))
+	       (next-point (svref points next)))
+	  (do ((i (wrap (+ current 2) num-cities) j)
+	       (j (wrap (+ current 3) num-cities) (wrap (1+ j) num-cities)))
+	      ((= j current) 0)
+	    (let* ((c (svref points i))
+		   (d (svref points j))
+		   (delta (or 
+			   (try-move points prev i prev-point current-point c d)
+			   (try-move points current i current-point next-point c d))))
+	      (when delta (return-from find-move delta))))
+	  (disable current-point) 0.0d0))))
 
-;; nasty.	
-(defun optimise (points)
-  (let ((best (tour-distance points))
-	(num-cities (length points))
+(defun optimise (tour)
+  "optimise a tour. 
+
+a tour is a vector containing cities.
+the tour is taken in order from the first element to the last, finally
+wrapping around from the last to the first to create a circle. the final
+distance of the tour is the sum of distances between each city in the
+ordered tour.
+
+the function will scan forward to the next city if no improvements can be
+made in relation to the adjacent edges of the current city or if the 
+current city has been marked as 'inactive'. if an improvement has been made,
+the function will go back 1 step.
+
+the function will continuously scan the tour until no further improvements
+can be made, in which case the tour is said to be '2 optimal'."
+  (let ((best (tour-distance tour))
+	(num-cities (length tour))
 	(visited 0)
 	(current 0))
     (do ()
 	((= visited num-cities) best)
-      (let ((current-point (svref points current)))
-	(if (= (point-active current-point) 1.0d0)
-	    (let ((modified (find-move current current-point points num-cities)))
-	      (if (< modified 0.0d0)
-		  (progn
-		    (setf current (wrap (1- current) num-cities))
-		    (setf visited 0)
-		    (incf best modified))
-		  (progn
-		    (setf (point-active current-point) 0.0d0)
-		    (setf current (wrap (1+ current) num-cities))
-		    (incf visited))))
+      (let ((modified (find-move current tour num-cities)))
+	(if (< modified 0.0d0)
+	    (progn 
+	      (setf current (wrap (1- current) num-cities))
+	      (setf visited 0)
+	      (incf best modified))
 	    (progn
 	      (setf current (wrap (1+ current) num-cities))
 	      (incf visited)))))))
 
-;; (sb-sprof:with-profiling (:max-samples 1 :report :flat :loop nil) (test-optimise))
+;; (sb-sprof:with-profiling (:max-samples 1 :report :flat :loop nil) 
+;;   (test-optimise))
 (defun test-optimise ()
   (let ((tour-array (load-points "greece.points")))
     (format t "starting distance = ~4$~%" (tour-distance tour-array))
