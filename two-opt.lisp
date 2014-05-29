@@ -88,37 +88,35 @@ iterated in order, represents a tour."
 	(- (+ (sqrt ac) (sqrt bd))
            (+ (sqrt ab) (sqrt cd))))))
 
-(defun activate (a b c d)
-  (setf (point-active a) 1.0d0) (setf (point-active b) 1.0d0)
-  (setf (point-active c) 1.0d0) (setf (point-active d) 1.0d0))
-
 (defun try-move (points from to a b c d)
   (let ((delta (move-cost a b c d)))
-    (if (< delta 0.0d0)
-	(progn 
-	  (activate a b c d)
-	  (reverse-subseq points (1+ (min from to)) (max from to))
-	  delta)
-	nil)))
+    (when (< delta 0.0d0)
+      (setf (point-active a) 1.0d0) (setf (point-active b) 1.0d0)
+      (setf (point-active c) 1.0d0) (setf (point-active d) 1.0d0)
+      (reverse-subseq points (1+ (min from to)) (max from to)))
+    delta))
 
-(defun find-move (current points num-cities)
-  (let ((current-point (svref points current)))
-    (if (not (active current-point))
-	0.0d0
-	(let* ((prev (wrap (1- current) num-cities))
-	       (next (wrap (1+ current) num-cities))
-	       (prev-point (svref points prev))
-	       (next-point (svref points next)))
-	  (do ((i (wrap (+ current 2) num-cities) j)
-	       (j (wrap (+ current 3) num-cities) (wrap (1+ j) num-cities)))
-	      ((= j current) 0)
-	    (let* ((c (svref points i))
-		   (d (svref points j))
-		   (delta (or 
-			   (try-move points prev i prev-point current-point c d)
-			   (try-move points current i current-point next-point c d))))
-	      (when delta (return-from find-move delta))))
-	  (disable current-point) 0.0d0))))
+(defun find-move (current tour num-cities)
+  (let ((current-point (svref tour current)))
+    (when (active current-point)
+      (do* ((prev (wrap (1- current) num-cities))
+	    (next (wrap (1+ current) num-cities))
+	    (prev-point (svref tour prev))
+	    (next-point (svref tour next))
+	    (i (wrap (+ current 2) num-cities) j)
+	    (j (wrap (+ current 3) num-cities) (wrap (1+ j) num-cities))
+	    (c (svref tour i) (svref tour i))
+	    (d (svref tour j) (svref tour j)))
+	   ((= j current))
+	(progn
+	(let ((delta (try-move tour prev i prev-point current-point c d))) (when (< delta 0.0d0) (return-from find-move delta)))
+	(let ((delta (try-move tour current i current-point next-point c d))) (when (< delta 0.0d0) (return-from find-move delta)))
+	)
+      )
+      (disable current-point))
+    0.0d0))
+
+
 
 (defun optimise (tour)
   "optimise a tour. 
