@@ -51,6 +51,13 @@ iterated in order, represents a tour."
 		:element-type 'vec3
 		:initial-contents (reverse result))))
 
+(defun dump-points (tour file-location)
+  "irerate through the tour and save each city point to file."
+  (with-open-file (out file-location :direction :output :if-exists :supersede)
+    (dotimes (i (length tour))
+      (let ((p (aref tour i)))
+	(format out "~4$ ~4$~%" (point-x p) (point-y p))))))
+
 (declaim (inline distance-squared))
 (defun distance-squared (p1 p2)
   "for comparing 2 edges."
