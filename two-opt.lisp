@@ -5,6 +5,7 @@
 (deftype vec3 () '(simple-array double-float (3)))
 
 (defun make-point (x y active)
+  "a city is a point (x,y) with an 'active' bit"
   (let ((vec3 (make-array 3 :element-type 'double-float :initial-element 0.0d0)))
     (setf (aref vec3 0) x
           (aref vec3 1) y
@@ -41,6 +42,7 @@
   (sqrt (distance-squared p1 p2)))
 
 (defun tour-distance (points)
+  "total distance of a tour. this is the minimisation objective."
   (declare (type simple-array points))
   (let ((tour-length (length points)))
     (do ((i 1 (1+ i))
@@ -75,6 +77,13 @@ iterated in order, represents a tour."
 		:initial-contents (reverse result))))
 
 (defun reverse-subseq (array from to)
+  "2-opt a tour.
+
+removing 2 edges and replacing them in a way that re-connects
+the tour without breaking it is equivalent to:
+1. take route[0] to route[i-1] and add them in order to new_route
+2. take route[i] to route[k] and add them in reverse order to new_route
+3. take route[k+1] to end and add them in order to new_route."
   (declare (type fixnum from to))
   (do ((i from (1+ i))
        (j to (1- j)))
@@ -85,12 +94,25 @@ iterated in order, represents a tour."
 
 (declaim (inline wrap))
 (defun wrap (i max)
+  "a tour is circular. wrap around."
   (declare (type fixnum i max))
   (declare (optimize (debug 0) (space 0) (safety 0) (speed 3)))
   (the fixnum (mod (the fixnum (+ i max)) max)))
 
 (declaim (inline move-cost))
 (defun move-cost (a b c d)
+  "calculate the cost of performing a move.
+
+the original edges are AB and CD. if the edges are recombined to:
+AC and BD respectively, return the difference/delta in tour length.
+this function exploits triangle of inequality for an optimisation
+avoiding expensive sqrt operations: at least one of the edges in 
+the move will be reduced if the tour becomes shorter. as such, if
+the distances of _both_ candidate edges AC and BD are greater than
+the original edges, AB CD, it is impossible for the resulting tour
+to be shorter. for this comparison, it is possible to use the
+squared distance (see distance squared function) without invoking
+square()."
   (declare (type vec3 a b c d))
   (declare (optimize (debug 0) (space 0) (safety 0) (speed 3)))
   (let ((ab (distance-squared a b)) (cd (distance-squared c d))
@@ -102,6 +124,13 @@ iterated in order, represents a tour."
 
 (declaim (inline try-move))
 (defun try-move (points from to a b c d)
+  "trys a single move.
+
+if the move results in an improvement, the corresponding vertices
+/cities associated with the swaped edges are 'activated' - meaning
+that if they were previously disabled, they should be included in
+later searches since subtours from these points have changed. in
+other words, the search neighborhood has changed."  
   (declare (type fixnum from to)
 	   (type vec3 a b c d))
   (declare (optimize (debug 0) (space 0) (safety 0) (speed 3)))
@@ -113,6 +142,52 @@ iterated in order, represents a tour."
     delta))
 
 (defun find-move (current tour num-cities)
+  "try to find a 2-opt move given the current city in the tour.
+
+a 2-opt move will involve removing either the previous edge (arc
+from previous city to this city, or the next edge (arc from this 
+city to the next city) and some other edge (from city c to city d).
+this function will scan for another edge (cd) to use in a 2-opt move
+with the previous or next edge. the move is taken if the resulting
+tour from recombining the edges in another way results in a shorter
+distance. for example, in the following tour ABCD, at city A, the 
+previous edge DA (wraps around) is removed along with CD (2nd edge
+after the next). this results in no improvement (the order tour
+order is reversed, but the length stays the same). the next edge
+from A, AC is then removed along with CD. the corresponding 
+replacement edges AC and BD result in a shorter tour, so the move
+is taken. 
+
+orginal: A-B-C-D     
+
+remove:  D-A, C-D
+replace: D-C, A-D
+after:   A-D-C-B       
+
+before     remove     replace  after
+A   C      A   C      A   C    A   C
+|\ /|      |  /       |  /     |\ /|
+| \ |      | /        | /      | \ |
+|/ \|      |/         |/       |/ \| 
+D   B      D   B      D   B    D   B
+
+
+remove:  A-B, C-D
+replace: A-C, B-D
+after:   A-C-B-D
+
+before     remove     replace  after
+A   C      A   C      A---C    A---C
+|\ /|       \ /                |   |
+| \ |        \                 |   |
+|/ \|       / \                |   | 
+D   B      D   B      D---B    D---B
+
+find move will compare all other edges after CD for larger tours until
+an improvement is found. the first improvement is returned. (a greedy
+search would compare all edges and return the 2-opt swap yielding the
+best improvement.       
+"
   (declare (type fixnum current num-cities))
   (declare (optimize (debug 0) (space 0) (safety 0) (speed 3)))
   (let ((current-point (svref tour current)))
