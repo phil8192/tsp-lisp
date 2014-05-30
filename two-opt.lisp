@@ -2,6 +2,8 @@
   (:use :cl))
 (in-package :two-opt)
 
+;(declaim (optimize (debug 0) (space 0) (safety 0) (speed 3)))
+
 (deftype vec3 () '(simple-array double-float (3)))
 
 (defun make-point (x y active)
@@ -26,17 +28,24 @@
 (defmacro disable (point)
   `(setf (aref ,point 2) 0.0d0))
 
+(declaim (inline distance-squared))
 (defun distance-squared (p1 p2)
   "for comparing 2 edges."
+  (declare (type vec3 p1 p2)
+	   (optimize (debug 0) (space 0) (safety 0) (speed 3)))
   (let ((dx (- (point-x p1) (point-x p2)))
 	(dy (- (point-y p1) (point-y p2))))
     (+ (* dx dx) (* dy dy))))
 
 (defun distance (p1 p2)
   "euclidean distance."
+  (declare (type vec3 p1 p2)
+	   (optimize (debug 0) (space 0) (safety 0) (speed 3)))
   (sqrt (distance-squared p1 p2)))
 
 (defun tour-distance (points)
+  (declare (type simple-array points) 
+	   (optimize (debug 0) (space 0) (safety 0) (speed 3)))
   (let ((tour-length (length points)))
     (do ((i 1 (1+ i))
 	 (d 0 (+ d (distance (aref points (1- i)) (aref points i)))))
@@ -70,6 +79,7 @@ iterated in order, represents a tour."
 		:initial-contents (reverse result))))
 
 (defun reverse-subseq (array from to)
+  (declare (type fixnum from to))
   (do ((i from (1+ i))
        (j to (1- j)))
       ((>= i j))
@@ -77,10 +87,16 @@ iterated in order, represents a tour."
       (setf (svref array i) (svref array j))
       (setf (svref array j) tmp))))
 
+(declaim (inline wrap))
 (defun wrap (i max)
+  (declare (type fixnum i max)
+	   (optimize (debug 0) (space 0) (safety 0) (speed 3)))
   (the fixnum (mod (the fixnum (+ i max)) max)))
 
+(declaim (inline move-cost))
 (defun move-cost (a b c d)
+  (declare (type vec3 a b c d)
+	   (optimize (debug 0) (space 0) (safety 0) (speed 3)))
   (let ((ab (distance-squared a b)) (cd (distance-squared c d))
 	(ac (distance-squared a c)) (bd (distance-squared b d)))
     (if (and (< ab ac) (< cd bd))
@@ -88,7 +104,10 @@ iterated in order, represents a tour."
 	(- (+ (sqrt ac) (sqrt bd))
            (+ (sqrt ab) (sqrt cd))))))
 
+(declaim (inline try-move))
 (defun try-move (points from to a b c d)
+  (declare (type fixnum from to)
+	   (type vec3 a b c d))
   (let ((delta (move-cost a b c d)))
     (when (< delta 0.0d0)
       (setf (point-active a) 1.0d0) (setf (point-active b) 1.0d0)
@@ -97,26 +116,26 @@ iterated in order, represents a tour."
     delta))
 
 (defun find-move (current tour num-cities)
+  (declare (type fixnum current num-cities)
+	   (optimize (debug 0) (space 0) (safety 0) (speed 3)))
   (let ((current-point (svref tour current)))
+    (declare (type vec3 current-point))
     (when (active current-point)
       (do* ((prev (wrap (1- current) num-cities))
 	    (next (wrap (1+ current) num-cities))
-	    (prev-point (svref tour prev))
-	    (next-point (svref tour next))
 	    (i (wrap (+ current 2) num-cities) j)
 	    (j (wrap (+ current 3) num-cities) (wrap (1+ j) num-cities))
+    	    (prev-point (svref tour prev))
+	    (next-point (svref tour next))
 	    (c (svref tour i) (svref tour i))
 	    (d (svref tour j) (svref tour j)))
-	   ((= j current))
+	   ((= j current) (disable current-point))
 	(progn
-	(let ((delta (try-move tour prev i prev-point current-point c d))) (when (< delta 0.0d0) (return-from find-move delta)))
-	(let ((delta (try-move tour current i current-point next-point c d))) (when (< delta 0.0d0) (return-from find-move delta)))
-	)
-      )
-      (disable current-point))
+	  (let ((delta (try-move tour prev i prev-point current-point c d))) 
+	    (when (< delta 0.0d0) (return-from find-move delta)))
+	  (let ((delta (try-move tour current i current-point next-point c d))) 
+	    (when (< delta 0.0d0) (return-from find-move delta))))))
     0.0d0))
-
-
 
 (defun optimise (tour)
   "optimise a tour. 
@@ -134,6 +153,8 @@ the function will go back 1 step.
 
 the function will continuously scan the tour until no further improvements
 can be made, in which case the tour is said to be '2 optimal'."
+  (declare (optimize (debug 0) (space 0) (safety 0) (speed 3))
+	   (type simple-array tour))
   (do* ((best (tour-distance tour))
 	(num-cities (length tour))
 	(visited 0) 
@@ -141,6 +162,8 @@ can be made, in which case the tour is said to be '2 optimal'."
 	(modified (find-move current tour num-cities)
 		  (find-move current tour num-cities)))
        ((= visited num-cities) best)
+    (declare (type double-float best modified)
+	     (type fixnum num-cities visited current))
     (if (< modified 0.0d0)
 	(progn 
 	  (setf current (wrap (1- current) num-cities))
