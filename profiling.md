@@ -8,6 +8,7 @@ Used SBCL's [Deterministic Profiler](http://www.sbcl.org/1.0/manual/Deterministi
 (sb-profile:profile "TWO-OPT")
 (time (test-optimise))
 (sb-profile:report)
+```
 
 ### reset profiler
 
