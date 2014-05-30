@@ -27,6 +27,30 @@
 (defmacro disable (point)
   `(setf (aref ,point 2) 0.0d0))
 
+(defun line-to-point (line)
+  "given a string of the form X Y create an instance of city." 
+  (let ((coordinates 
+	 (with-input-from-string (s line)
+	   (loop
+	      :for num := (read s nil nil)
+	      :while num
+	      :collect num))))
+    (make-point (first coordinates)
+		(second coordinates)
+                1.0d0)))
+
+(defun load-points (file-location)
+  "load points from a file into a vector. this vector, when
+iterated in order, represents a tour."
+  (let ((*read-default-float-format* 'double-float)
+	(result nil))
+    (with-open-file (in file-location)
+      (loop for line = (read-line in nil) while line do
+	   (push (line-to-point line) result)))
+    (make-array (length result)
+		:element-type 'vec3
+		:initial-contents (reverse result))))
+
 (declaim (inline distance-squared))
 (defun distance-squared (p1 p2)
   "for comparing 2 edges."
@@ -49,32 +73,6 @@
 	 (d 0 (+ d (distance (aref points (1- i)) (aref points i)))))
 	((= i tour-length)
 	 (+ d (distance (aref points (1- tour-length)) (aref points 0)))))))
-
-(defun line-to-point (line)
-  "given a string of the form X Y create an instance of city." 
-  (let ((coordinates 
-	 (with-input-from-string (s line)
-	   (loop
-	      :for num := (read s nil nil)
-	      :while num
-	      :collect num))))
-    (make-point (first coordinates)
-		(second coordinates)
-                1.0d0)))
-
-(defun load-points (file-location)
-  "load points from a file into a vector. this vector, when
-iterated in order, represents a tour."
-  (let ((*read-default-float-format* 'double-float) 
-       (in (open file-location))
-	(result nil))
-    (loop for line = (read-line in nil)
-       while line do 
-	 (push (line-to-point line) result))
-    (close in)
-    (make-array (length result)
-		:element-type 'vec3
-		:initial-contents (reverse result))))
 
 (defun reverse-subseq (array from to)
   "2-opt a tour.
