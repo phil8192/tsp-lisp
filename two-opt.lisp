@@ -1,6 +1,11 @@
-(defpackage :two-opt
-  (:use :cl))
-(in-package :two-opt)
+(defpackage :net.parasec.two-opt
+  (:use :cl)
+  (:export :load-points
+	   :dump-points
+	   :tour-distance
+	   :optimise))
+
+(in-package :net.parasec.two-opt)
 
 (deftype vec3 () '(simple-array double-float (3)))
 
