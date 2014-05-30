@@ -2,8 +2,6 @@
   (:use :cl))
 (in-package :two-opt)
 
-;(declaim (optimize (debug 0) (space 0) (safety 0) (speed 3)))
-
 (deftype vec3 () '(simple-array double-float (3)))
 
 (defun make-point (x y active)
@@ -28,24 +26,22 @@
 (defmacro disable (point)
   `(setf (aref ,point 2) 0.0d0))
 
-(declaim (inline distance-squared))
+; (optimize (debug 3) (space 0) (safety 0) (speed 3)
+;(declaim (inline distance-squared))
 (defun distance-squared (p1 p2)
   "for comparing 2 edges."
-  (declare (type vec3 p1 p2)
-	   (optimize (debug 0) (space 0) (safety 0) (speed 3)))
+  (declare (type vec3 p1 p2))
   (let ((dx (- (point-x p1) (point-x p2)))
 	(dy (- (point-y p1) (point-y p2))))
     (+ (* dx dx) (* dy dy))))
 
 (defun distance (p1 p2)
   "euclidean distance."
-  (declare (type vec3 p1 p2)
-	   (optimize (debug 0) (space 0) (safety 0) (speed 3)))
+  (declare (type vec3 p1 p2))
   (sqrt (distance-squared p1 p2)))
 
 (defun tour-distance (points)
-  (declare (type simple-array points) 
-	   (optimize (debug 0) (space 0) (safety 0) (speed 3)))
+  (declare (type simple-array points))
   (let ((tour-length (length points)))
     (do ((i 1 (1+ i))
 	 (d 0 (+ d (distance (aref points (1- i)) (aref points i)))))
@@ -87,16 +83,14 @@ iterated in order, represents a tour."
       (setf (svref array i) (svref array j))
       (setf (svref array j) tmp))))
 
-(declaim (inline wrap))
+;(declaim (inline wrap))
 (defun wrap (i max)
-  (declare (type fixnum i max)
-	   (optimize (debug 0) (space 0) (safety 0) (speed 3)))
+  (declare (type fixnum i max))
   (the fixnum (mod (the fixnum (+ i max)) max)))
 
-(declaim (inline move-cost))
+;(declaim (inline move-cost))
 (defun move-cost (a b c d)
-  (declare (type vec3 a b c d)
-	   (optimize (debug 0) (space 0) (safety 0) (speed 3)))
+  (declare (type vec3 a b c d))
   (let ((ab (distance-squared a b)) (cd (distance-squared c d))
 	(ac (distance-squared a c)) (bd (distance-squared b d)))
     (if (and (< ab ac) (< cd bd))
@@ -104,7 +98,7 @@ iterated in order, represents a tour."
 	(- (+ (sqrt ac) (sqrt bd))
            (+ (sqrt ab) (sqrt cd))))))
 
-(declaim (inline try-move))
+;(declaim (inline try-move))
 (defun try-move (points from to a b c d)
   (declare (type fixnum from to)
 	   (type vec3 a b c d))
@@ -116,8 +110,7 @@ iterated in order, represents a tour."
     delta))
 
 (defun find-move (current tour num-cities)
-  (declare (type fixnum current num-cities)
-	   (optimize (debug 0) (space 0) (safety 0) (speed 3)))
+  (declare (type fixnum current num-cities))
   (let ((current-point (svref tour current)))
     (declare (type vec3 current-point))
     (when (active current-point)
@@ -127,7 +120,7 @@ iterated in order, represents a tour."
 	    (j (wrap (+ current 3) num-cities) (wrap (1+ j) num-cities))
     	    (prev-point (svref tour prev))
 	    (next-point (svref tour next))
-	    (c (svref tour i) (svref tour i))
+	    (c (svref tour i) d)
 	    (d (svref tour j) (svref tour j)))
 	   ((= j current) (disable current-point))
 	(progn
@@ -153,8 +146,7 @@ the function will go back 1 step.
 
 the function will continuously scan the tour until no further improvements
 can be made, in which case the tour is said to be '2 optimal'."
-  (declare (optimize (debug 0) (space 0) (safety 0) (speed 3))
-	   (type simple-array tour))
+  (declare (type simple-array tour))
   (do* ((best (tour-distance tour))
 	(num-cities (length tour))
 	(visited 0) 
@@ -173,8 +165,16 @@ can be made, in which case the tour is said to be '2 optimal'."
 	  (setf current (wrap (1+ current) num-cities))
 	  (incf visited)))))
 
+;; (require :sb-sprof)
 ;; (sb-sprof:with-profiling (:max-samples 1 :report :flat :loop nil) 
-;;   (test-optimise))
+;;   (time (test-optimise)))
+;;
+;; (sb-profile:profile "TWO-OPT")
+;; (time (test-optimise))
+;; (sb-profile:report)
+;;
+;; (sb-profile:reset)
+;; (sb-profile:unprofile "TWO-OPT")
 (defun test-optimise ()
   (let ((tour-array (load-points "greece.points")))
     (format t "starting distance = ~4$~%" (tour-distance tour-array))
