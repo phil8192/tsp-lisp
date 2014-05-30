@@ -38,6 +38,8 @@ Evaluation took:
 ; Evaluation aborted on NIL.
 ```
 
+### report
+
   seconds  |     gc     |     consed     |     calls     |  sec/call  |  name  
 ----------- | ------------ | ---------------- | --------------- | ------------ | --
     48.222 |      2.088 | 20,088,303,376 |   251,111,636 |   0.000000 | MOVE-COST
