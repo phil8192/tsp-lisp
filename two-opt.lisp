@@ -1,6 +1,8 @@
 (defpackage :net.parasec.two-opt
   (:use :cl)
-  (:export :load-points
+  (:export :vec3
+	   :make-point
+	   :load-points
 	   :dump-points
 	   :tour-distance
 	   :optimise))
